@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
+import 'transaction_history_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -20,46 +21,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _fetchDashboard();
   }
 
- Future<void> _fetchDashboard() async {
-  setState(() {
-    _isLoading = true;
-    _errorMessage = '';
-  });
-
-  try {
-    final response = await ApiService.getDashboard();
-    
-    // ✅ Check for unauthorized
-    if (response['unauthorized'] == true) {
-      await ApiService.clearAll();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
-        ),
-      );
-      return;
-    }
-
-    if (response['status'] == true) {
-      setState(() {
-        _dashboardData = response['data'] ?? {};
-      });
-    } else {
-      setState(() {
-        _errorMessage = response['message'] ?? 'Failed to load dashboard';
-      });
-    }
-  } catch (e) {
+  Future<void> _fetchDashboard() async {
     setState(() {
-      _errorMessage = 'Network error';
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final response = await ApiService.getDashboard();
+      
+      if (response['unauthorized'] == true) {
+        await ApiService.clearAll();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginScreen(),
+          ),
+        );
+        return;
+      }
+
+      if (response['status'] == true) {
+        setState(() {
+          _dashboardData = response['data'] ?? {};
+        });
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Failed to load dashboard';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Network error';
+      });
+    }
+
+    setState(() {
+      _isLoading = false;
     });
   }
-
-  setState(() {
-    _isLoading = false;
-  });
-}
 
   Future<void> _logout() async {
     await ApiService.clearAll();
@@ -108,29 +108,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        // Account Balance Card
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                const Text(
-                                  'Account Balance',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
+                        // Account Balance Card - Clickable
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const TransactionHistoryScreen(),
+                              ),
+                            );
+                          },
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Account Balance',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '₹${_dashboardData['account_balance']?.toString() ?? '0'}',
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '₹${_dashboardData['account_balance']?.toString() ?? '0'}',
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Tap to view transaction history',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),

@@ -227,4 +227,42 @@ static Future<Map<String, dynamic>> getOtp(String phone) async {
     return {'status': false, 'message': 'Network error: $e'};
   }
 }
+
+static Future<Map<String, dynamic>> getAccountBalanceHistory() async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'status': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/account-balance-history'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Balance History Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'status': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
+
 }
