@@ -11,6 +11,7 @@ class ApiService {
     await prefs.setString('auth_token', token);
   }
 
+
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
@@ -29,6 +30,12 @@ class ApiService {
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+  }
+
+ static Future<bool> isLoggedIn() async {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+    return token != null && token.isNotEmpty && dealerId != null;
   }
 
   // Test method to verify API connection
@@ -111,52 +118,113 @@ static Future<Map<String, dynamic>> getOtp(String phone) async {
     }
   }
 
-  static Future<Map<String, dynamic>> verifyMpin(String mpin) async {
-    try {
-      final token = await getToken();
-      final dealerId = await getDealerId();
+ static Future<Map<String, dynamic>> verifyMpin(String mpin) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/verify-mpin'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'dealer_id': dealerId,
-          'mpin': mpin,
-        }),
-      );
+    print('Verifying MPIN for dealer: $dealerId');
 
-      final data = json.decode(response.body);
-      
-      if (data['success'] == true && data['auth_token'] != null) {
-        await saveToken(data['auth_token']);
-      }
+    final response = await http.post(
+      Uri.parse('$baseUrl/verify-mpin'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'mpin': mpin,
+      }),
+    );
 
-      return data;
-    } catch (e) {
-      return {'success': false, 'message': 'Network error: $e'};
+    print('MPIN Response Status: ${response.statusCode}');
+    print('MPIN Response Body: ${response.body}');
+
+    final data = json.decode(response.body);
+    
+    // ✅ CHECK: If unauthorized dealer or 401 status
+    if (response.statusCode == 401 || 
+        (data['success'] == false && data['message'] == 'Unauthorized dealer')) {
+      print('⚠️ Unauthorized dealer - Clearing session');
+      await clearAll();
+      return {
+        'success': false, 
+        'message': data['message'] ?? 'Session expired',
+        'unauthorized': true  // Flag to handle logout
+      };
     }
-  }
 
-  static Future<Map<String, dynamic>> getDashboard() async {
-    try {
-      final token = await getToken();
-      final dealerId = await getDealerId();
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/dashboard'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({'dealer_id': dealerId}),
-      );
-
-      return json.decode(response.body);
-    } catch (e) {
-      return {'status': false, 'message': 'Network error: $e'};
+    // ✅ Also check for other unauthorized messages
+    if (data['success'] == false && 
+        (data['message']?.contains('Unauthorized') ?? false)) {
+      print('⚠️ Unauthorized - Clearing session');
+      await clearAll();
+      return {
+        'success': false, 
+        'message': data['message'] ?? 'Session expired',
+        'unauthorized': true
+      };
     }
+
+    if (data['success'] == true && data['auth_token'] != null) {
+      await saveToken(data['auth_token']);
+    }
+
+    return data;
+  } catch (e) {
+    print('Error in verifyMpin: $e');
+    return {'success': false, 'message': 'Network error: $e'};
   }
+}
+
+ static Future<Map<String, dynamic>> getDashboard() async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    print('Getting dashboard for dealer: $dealerId');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/dashboard'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'dealer_id': dealerId}),
+    );
+
+    print('Dashboard Response Status: ${response.statusCode}');
+    print('Dashboard Response Body: ${response.body}');
+
+    final data = json.decode(response.body);
+    
+    // ✅ Check for unauthorized
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      print('⚠️ Unauthorized - Clearing session');
+      await clearAll();
+      return {
+        'status': false, 
+        'message': data['message'] ?? 'Session expired',
+        'unauthorized': true
+      };
+    }
+    
+    // ✅ Check for unauthorized dealer message
+    if (data['status'] == false && 
+        (data['message']?.contains('Unauthorized') ?? false)) {
+      print('⚠️ Unauthorized dealer - Clearing session');
+      await clearAll();
+      return {
+        'status': false, 
+        'message': data['message'] ?? 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return data;
+  } catch (e) {
+    print('Error in getDashboard: $e');
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
 }

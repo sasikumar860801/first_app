@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';  // ADD THIS IMPORT
+import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import 'dashboard_screen.dart';
+import 'login_screen.dart';
 
 class MPINScreen extends StatefulWidget {
   const MPINScreen({super.key});
@@ -25,93 +26,136 @@ class _MPINScreenState extends State<MPINScreen> {
   }
 
   Future<void> _checkMpinStatus() async {
+    // For demo, show verify option
     setState(() {
       _isVerifying = true;
     });
   }
 
-  Future<void> _handleMpin() async {
-    String mpin = _mpinController.text.trim();
+  // ✅ NEW: Handle logout
+  Future<void> _handleLogout() async {
+    await ApiService.clearAll();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+    );
+  }
 
-    if (mpin.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter MPIN';
-        _successMessage = '';
-      });
-      return;
-    }
+ Future<void> _handleMpin() async {
+  String mpin = _mpinController.text.trim();
 
-    if (mpin.length != 4) {
-      setState(() {
-        _errorMessage = 'MPIN must be 4 digits';
-        _successMessage = '';
-      });
-      return;
-    }
-
-    if (!_isVerifying) {
-      String confirmMpin = _confirmMpinController.text.trim();
-      if (mpin != confirmMpin) {
-        setState(() {
-          _errorMessage = 'MPIN does not match';
-          _successMessage = '';
-        });
-        return;
-      }
-    }
-
+  if (mpin.isEmpty) {
     setState(() {
-      _isLoading = true;
-      _errorMessage = '';
+      _errorMessage = 'Please enter MPIN';
       _successMessage = '';
     });
+    return;
+  }
 
-    try {
-      dynamic response;
-      
-      if (_isVerifying) {
-        response = await ApiService.verifyMpin(mpin);
-      } else {
-        response = await ApiService.updateMpin(mpin);
-      }
+  if (mpin.length != 4) {
+    setState(() {
+      _errorMessage = 'MPIN must be 4 digits';
+      _successMessage = '';
+    });
+    return;
+  }
 
-      if (response['success'] == true) {
-        if (_isVerifying) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const DashboardScreen(),
-            ),
-          );
-        } else {
-          setState(() {
-            _successMessage = 'MPIN set successfully!';
-            _isVerifying = true;
-            _mpinController.clear();
-            _confirmMpinController.clear();
-          });
-        }
-      } else {
-        setState(() {
-          _errorMessage = response['message'] ?? 'Operation failed';
-        });
-      }
-    } catch (e) {
+  if (!_isVerifying) {
+    String confirmMpin = _confirmMpinController.text.trim();
+    if (mpin != confirmMpin) {
       setState(() {
-        _errorMessage = 'Something went wrong';
+        _errorMessage = 'MPIN does not match';
+        _successMessage = '';
       });
+      return;
+    }
+  }
+
+  setState(() {
+    _isLoading = true;
+    _errorMessage = '';
+    _successMessage = '';
+  });
+
+  try {
+    dynamic response;
+    
+    if (_isVerifying) {
+      response = await ApiService.verifyMpin(mpin);
+    } else {
+      response = await ApiService.updateMpin(mpin);
     }
 
+    // ✅ CHECK: If unauthorized, clear and go to Login
+    if (response['unauthorized'] == true) {
+      await ApiService.clearAll();
+      
+      // Show message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message'] ?? 'Session expired. Please login again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Navigate to Login
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
+      return;
+    }
+
+    if (response['success'] == true) {
+      if (_isVerifying) {
+        // Navigate to Dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const DashboardScreen(),
+          ),
+        );
+      } else {
+        setState(() {
+          _successMessage = 'MPIN set successfully!';
+          _isVerifying = true;
+          _mpinController.clear();
+          _confirmMpinController.clear();
+        });
+      }
+    } else {
+      setState(() {
+        _errorMessage = response['message'] ?? 'Operation failed';
+      });
+    }
+  } catch (e) {
     setState(() {
-      _isLoading = false;
+      _errorMessage = 'Something went wrong';
     });
   }
+
+  setState(() {
+    _isLoading = false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isVerifying ? 'Verify MPIN' : 'Setup MPIN'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _handleLogout,
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),

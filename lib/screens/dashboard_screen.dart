@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,38 +20,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _fetchDashboard();
   }
 
-  Future<void> _fetchDashboard() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+ Future<void> _fetchDashboard() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = '';
+  });
 
-    try {
-      final response = await ApiService.getDashboard();
-      
-      if (response['status'] == true) {
-        setState(() {
-          _dashboardData = response['data'] ?? {};
-        });
-      } else {
-        setState(() {
-          _errorMessage = response['message'] ?? 'Failed to load dashboard';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Network error';
-      });
+  try {
+    final response = await ApiService.getDashboard();
+    
+    // ✅ Check for unauthorized
+    if (response['unauthorized'] == true) {
+      await ApiService.clearAll();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
+      return;
     }
 
+    if (response['status'] == true) {
+      setState(() {
+        _dashboardData = response['data'] ?? {};
+      });
+    } else {
+      setState(() {
+        _errorMessage = response['message'] ?? 'Failed to load dashboard';
+      });
+    }
+  } catch (e) {
     setState(() {
-      _isLoading = false;
+      _errorMessage = 'Network error';
     });
   }
 
+  setState(() {
+    _isLoading = false;
+  });
+}
+
   Future<void> _logout() async {
     await ApiService.clearAll();
-    Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginScreen(),
+      ),
+    );
   }
 
   @override
@@ -62,6 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
+            tooltip: 'Logout',
           ),
         ],
       ),

@@ -19,7 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Test API when screen loads
     _testGetOtpApi();
   }
 
@@ -135,13 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // ✅ FIXED: Container with proper closing
             Container(
               width: 100,
               height: 100,
               decoration: BoxDecoration(
                 color: Colors.deepPurple,
                 borderRadius: BorderRadius.circular(20),
-              ),.
+              ),
               child: const Icon(
                 Icons.storefront,
                 size: 60,

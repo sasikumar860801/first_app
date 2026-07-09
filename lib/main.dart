@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+import 'screens/mpin_screen.dart';
+import 'services/api_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,7 +23,6 @@ class MyApp extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
         ),
-        // FIXED: Changed CardTheme to CardThemeData
         cardTheme: const CardThemeData(
           color: Color(0xFF1E1E1E),
           elevation: 4,
@@ -62,10 +63,100 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(color: Colors.grey, fontSize: 14),
         ),
       ),
-      home: const LoginScreen(),
+      // ✅ Use AuthCheck as initial screen
+      home: const AuthCheckScreen(),
     );
   }
 }
 
-// my phone /version info/ build number
-//developers / developer options / usb debug 
+// ✅ NEW: Auth Check Screen
+class AuthCheckScreen extends StatefulWidget {
+  const AuthCheckScreen({super.key});
+
+  @override
+  State<AuthCheckScreen> createState() => _AuthCheckScreenState();
+}
+
+class _AuthCheckScreenState extends State<AuthCheckScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    // Wait a moment for splash effect
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // Check if token exists
+    String? token = await ApiService.getToken();
+    int? dealerId = await ApiService.getDealerId();
+    
+    setState(() {
+      _isLoading = false;
+    });
+
+    // Navigate based on auth status
+    if (token != null && token.isNotEmpty && dealerId != null) {
+      // ✅ Token exists - Go to MPIN screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MPINScreen(),
+        ),
+      );
+    } else {
+      // ❌ No token - Go to Login screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginScreen(),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App Logo
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.deepPurple,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.storefront,
+                size: 50,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Text(
+              'Dealer App',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_isLoading)
+              const CircularProgressIndicator(
+                color: Colors.deepPurple,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
