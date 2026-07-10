@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'transaction_history_screen.dart';
+import 'new_leads_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -172,12 +173,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           children: [
-                            _buildStatCard(
-                              'New Leads',
-                              _dashboardData['new_leads_count']?.toString() ?? '0',
-                              Icons.people_outline,
-                              Colors.blue,
-                            ),
+                          GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NewLeadsScreen(),
+                                    ),
+                                  );
+                                },
+                                child: _buildStatCard(
+                                  'New Leads',
+                                  _dashboardData['new_leads_count']?.toString() ?? '0',
+                                  Icons.people_outline,
+                                  Colors.blue,
+                                ),
+                              ),
                             _buildStatCard(
                               'Live Leads',
                               _dashboardData['live_leads_count']?.toString() ?? '0',

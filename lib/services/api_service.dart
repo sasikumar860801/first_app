@@ -265,4 +265,87 @@ static Future<Map<String, dynamic>> getAccountBalanceHistory() async {
   }
 }
 
+// Get New Leads
+static Future<Map<String, dynamic>> getNewLeads() async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/new-leads?dealer_id=$dealerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('New Leads Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in getNewLeads: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Place Bid
+static Future<Map<String, dynamic>> placeBid(String orderId, String percentage) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/placeBid'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'order_id': orderId,
+        'percentage': percentage,
+      }),
+    );
+
+    print('Place Bid Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in placeBid: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
 }
