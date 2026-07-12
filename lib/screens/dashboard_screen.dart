@@ -3,6 +3,8 @@ import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'transaction_history_screen.dart';
 import 'new_leads_screen.dart';
+import 'live_leads_screen.dart';
+import 'history_leads_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -189,24 +191,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Colors.blue,
                                 ),
                               ),
-                            _buildStatCard(
-                              'Live Leads',
-                              _dashboardData['live_leads_count']?.toString() ?? '0',
-                              Icons.sync,
-                              Colors.orange,
-                            ),
-                            _buildStatCard(
-                              'Completed Leads',
-                              _dashboardData['completed_leads_count']?.toString() ?? '0',
-                              Icons.check_circle_outline,
-                              Colors.green,
-                            ),
-                            _buildStatCard(
-                              'Cancelled Leads',
-                              _dashboardData['cancelled_leads_count']?.toString() ?? '0',
-                              Icons.cancel_outlined,
-                              Colors.red,
-                            ),
+                         GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const LiveLeadsScreen(),
+                                    ),
+                                  );
+                                },
+                                child: _buildStatCard(
+                                  'Live Leads',
+                                  _dashboardData['live_leads_count']?.toString() ?? '0',
+                                  Icons.sync,
+                                  Colors.orange,
+                                ),
+                              ),
+
+    GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HistoryLeadsScreen(initialTab: 0), // 0 = Completed
+      ),
+    );
+  },
+  child: _buildStatCard(
+    'Completed Leads',
+    _dashboardData['completed_leads_count']?.toString() ?? '0',
+    Icons.check_circle_outline,
+    Colors.green,
+  ),
+),
+
+// Cancelled Leads Card - Clickable
+GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HistoryLeadsScreen(initialTab: 1), // 1 = Cancelled
+      ),
+    );
+  },
+  child: _buildStatCard(
+    'Cancelled Leads',
+    _dashboardData['cancelled_leads_count']?.toString() ?? '0',
+    Icons.cancel_outlined,
+    Colors.red,
+  ),
+),
                           ],
                         ),
                         const SizedBox(height: 16),

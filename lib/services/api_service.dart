@@ -348,4 +348,210 @@ static Future<Map<String, dynamic>> placeBid(String orderId, String percentage) 
   }
 }
 
+static Future<Map<String, dynamic>> getLiveLeads() async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/live-leads?dealer_id=$dealerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Live Leads Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in getLiveLeads: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Complete Lead
+static Future<Map<String, dynamic>> completeLead(String orderId) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/complete-the-leads'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'order_id': orderId,
+      }),
+    );
+
+    print('Complete Lead Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in completeLead: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Reject Lead
+static Future<Map<String, dynamic>> rejectLead(String orderId) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/reject-the-leads'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'order_id': orderId,
+      }),
+    );
+
+    print('Reject Lead Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in rejectLead: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Back to Live
+static Future<Map<String, dynamic>> backToLive(String orderId) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/back-to-live'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'order_id': orderId,
+      }),
+    );
+
+    print('Back to Live Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in backToLive: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Get History Leads
+static Future<Map<String, dynamic>> getHistoryLeads() async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'success': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/history-leads?dealer_id=$dealerId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('History Leads Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'success': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in getHistoryLeads: $e');
+    return {'success': false, 'message': 'Network error: $e'};
+  }
+}
+
 }
