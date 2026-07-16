@@ -553,5 +553,204 @@ static Future<Map<String, dynamic>> getHistoryLeads() async {
     return {'success': false, 'message': 'Network error: $e'};
   }
 }
+// Get Models List
+
+
+// List Dealer Stocks
+static Future<Map<String, dynamic>> listDealerStocks({int page = 1}) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'status': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/list-dealer-stock?dealer_id=$dealerId&page=$page'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('List Stocks Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'status': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in listDealerStocks: $e');
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Create Dealer Stock
+static Future<Map<String, dynamic>> createDealerStock(Map<String, dynamic> data) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'status': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/create-dealer-stock'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        ...data,
+        'dealer_id': dealerId,
+      }),
+    );
+
+    print('Create Stock Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'status': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in createDealerStock: $e');
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Edit Dealer Stock
+static Future<Map<String, dynamic>> editDealerStock(Map<String, dynamic> data) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'status': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/edit-dealer-stock'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        ...data,
+        'dealer_id': dealerId,
+      }),
+    );
+
+    print('Edit Stock Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'status': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in editDealerStock: $e');
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Delete Dealer Stock
+static Future<Map<String, dynamic>> deleteDealerStock(String orderId) async {
+  try {
+    final token = await getToken();
+    final dealerId = await getDealerId();
+
+    if (token == null || dealerId == null) {
+      return {
+        'status': false, 
+        'message': 'User not authenticated'
+      };
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete-dealer-stock'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'dealer_id': dealerId,
+        'order_id': orderId,
+      }),
+    );
+
+    print('Delete Stock Response: ${response.body}');
+    
+    if (response.statusCode == 401) {
+      await clearAll();
+      return {
+        'status': false, 
+        'message': 'Session expired',
+        'unauthorized': true
+      };
+    }
+
+    return json.decode(response.body);
+  } catch (e) {
+    print('Error in deleteDealerStock: $e');
+    return {'status': false, 'message': 'Network error: $e'};
+  }
+}
+
+// Search Model
+static Future<List<dynamic>> searchModel(String query) async {
+  try {
+    final token = await getToken();
+
+    if (token == null) {
+      return [];
+    }
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/search-model?query=$query'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Search Model Response: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    return [];
+  } catch (e) {
+    print('Error in searchModel: $e');
+    return [];
+  }
+}
 
 }

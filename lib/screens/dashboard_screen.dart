@@ -5,6 +5,7 @@ import 'transaction_history_screen.dart';
 import 'new_leads_screen.dart';
 import 'live_leads_screen.dart';
 import 'history_leads_screen.dart';
+import 'my_stocks_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -261,11 +262,22 @@ GestureDetector(
                                   ),
                                 ),
                                 const Divider(),
-                                _buildRowStat(
-                                  'My Stocks',
-                                  _dashboardData['my_stocks_count']?.toString() ?? '0',
-                                  Icons.inventory,
-                                ),
+                               // My Stocks Card - Clickable
+GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MyStocksScreen(),
+      ),
+    );
+  },
+  child: _buildRowStat(
+    'My Stocks',
+    _dashboardData['my_stocks_count']?.toString() ?? '0',
+    Icons.inventory,
+  ),
+),
                                 _buildRowStat(
                                   'My Orders',
                                   _dashboardData['my_orders_count']?.toString() ?? '0',

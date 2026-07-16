@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:searchable_dropdown/searchable_dropdown.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -14,7 +13,6 @@ class MyStocksScreen extends StatefulWidget {
 
 class _MyStocksScreenState extends State<MyStocksScreen> {
   List<dynamic> _stocks = [];
-  List<dynamic> _models = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
   String _errorMessage = '';
@@ -23,25 +21,43 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
   
   // Form controllers
   final _formKey = GlobalKey<FormState>();
-  String? _selectedModelId;
-  final _capacityController = TextEditingController();
-  final _buyPriceController = TextEditingController();
-  final _colorController = TextEditingController();
-  final _imei1Controller = TextEditingController();
-  final _imei2Controller = TextEditingController();
-  final _warrantyController = TextEditingController();
   
-  bool _isCreating = false;
+  // Model search
+  String? _selectedModelId;
+  String _selectedModelName = '';
+  final TextEditingController _modelSearchController = TextEditingController();
+  List<dynamic> _searchResults = [];
+  bool _isSearching = false;
+  
+  // RAM and ROM
+  final TextEditingController _ramController = TextEditingController();
+  final TextEditingController _romController = TextEditingController();
+  
+  // Other fields
+  final TextEditingController _buyPriceController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _imei1Controller = TextEditingController();
+  final TextEditingController _imei2Controller = TextEditingController();
+  String? _selectedWarranty;
+  
+  bool _isSubmitting = false;
   bool _isEditing = false;
   String? _editingOrderId;
+  String _formError = '';
   
   late Timer _timer;
+
+  final List<String> _warrantyOptions = [
+    'No Warranty',
+    '3 Months Warranty',
+    '6 Months Warranty',
+    '1 Year Warranty'
+  ];
 
   @override
   void initState() {
     super.initState();
     _fetchStocks();
-    _fetchModels();
     
     _timer = Timer.periodic(const Duration(seconds: 300), (timer) {
       _fetchStocks();
@@ -51,25 +67,42 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
   @override
   void dispose() {
     _timer.cancel();
-    _capacityController.dispose();
+    _modelSearchController.dispose();
+    _ramController.dispose();
+    _romController.dispose();
     _buyPriceController.dispose();
     _colorController.dispose();
     _imei1Controller.dispose();
     _imei2Controller.dispose();
-    _warrantyController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchModels() async {
-    try {
-      final response = await ApiService.getModels();
-      setState(() {
-        _models = response;
-      });
-    } catch (e) {
-      print('Error fetching models: $e');
+ Future<void> _searchModel(String query) async {
+  setState(() {
+    _searchResults = [];
+    if (query.isEmpty) {
+      _selectedModelId = null;
+      _selectedModelName = '';
+      return;
     }
+  });
+  
+  setState(() => _isSearching = true);
+  
+  try {
+    final results = await ApiService.searchModel(query);
+    setState(() {
+      _searchResults = results;
+      _isSearching = false;
+    });
+  } catch (e) {
+    print('Search error: $e');
+    setState(() {
+      _searchResults = [];
+      _isSearching = false;
+    });
   }
+}
 
   Future<void> _fetchStocks({bool loadMore = false}) async {
     if (loadMore) {
@@ -134,17 +167,26 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
   Future<void> _createStock() async {
     if (!_formKey.currentState!.validate()) return;
     
-    setState(() => _isCreating = true);
+    if (_selectedModelId == null) {
+      setState(() => _formError = 'Please search and select a model');
+      return;
+    }
+    
+    setState(() {
+      _isSubmitting = true;
+      _formError = '';
+    });
 
     try {
       final data = {
         'model_id': _selectedModelId,
-        'capacity': _capacityController.text.trim(),
+        'ram': int.parse(_ramController.text.trim()),
+        'rom': int.parse(_romController.text.trim()),
         'buy_price': double.parse(_buyPriceController.text.trim()),
         'color': _colorController.text.trim(),
         'imei_no_1': _imei1Controller.text.trim(),
         'imei_no_2': _imei2Controller.text.trim().isEmpty ? null : _imei2Controller.text.trim(),
-        'warranty': _warrantyController.text.trim(),
+        'warranty': _selectedWarranty,
       };
 
       final response = await ApiService.createDealerStock(data);
@@ -167,17 +209,17 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
         _fetchStocks();
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ ${response['message']}'), backgroundColor: Colors.red),
-        );
+        setState(() {
+          _formError = response['message'] ?? 'Failed to create stock';
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      setState(() {
+        _formError = 'Error: $e';
+      });
     }
 
-    setState(() => _isCreating = false);
+    setState(() => _isSubmitting = false);
   }
 
   Future<void> _editStock(dynamic stock) async {
@@ -185,12 +227,28 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
       _isEditing = true;
       _editingOrderId = stock['order_id'];
       _selectedModelId = stock['model_id'].toString();
-      _capacityController.text = stock['capacity'] ?? '';
+      _selectedModelName = '${stock['brand_title'] ?? ''} ${stock['model_title'] ?? ''}';
+      _modelSearchController.text = _selectedModelName;
+      
+      // Parse capacity to RAM/ROM
+      String capacity = stock['capacity'] ?? '';
+      if (capacity.contains('/')) {
+        List<String> parts = capacity.split('/');
+        if (parts.length == 2) {
+          _ramController.text = parts[0].replaceAll('GB', '').trim();
+          _romController.text = parts[1].replaceAll('GB', '').trim();
+        }
+      } else {
+        _ramController.text = '';
+        _romController.text = '';
+      }
+      
       _buyPriceController.text = stock['buy_price']?.toString() ?? '';
       _colorController.text = stock['color'] ?? '';
       _imei1Controller.text = stock['imei_no_1'] ?? '';
       _imei2Controller.text = stock['imei_no_2'] ?? '';
-      _warrantyController.text = stock['warranty'] ?? '';
+      _selectedWarranty = stock['warranty'] ?? '';
+      _formError = '';
     });
 
     _showStockForm(isEdit: true);
@@ -199,18 +257,27 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
   Future<void> _updateStock() async {
     if (!_formKey.currentState!.validate()) return;
     
-    setState(() => _isCreating = true);
+    if (_selectedModelId == null) {
+      setState(() => _formError = 'Please search and select a model');
+      return;
+    }
+    
+    setState(() {
+      _isSubmitting = true;
+      _formError = '';
+    });
 
     try {
       final data = {
         'order_id': _editingOrderId,
         'model_id': _selectedModelId,
-        'capacity': _capacityController.text.trim(),
+        'ram': int.parse(_ramController.text.trim()),
+        'rom': int.parse(_romController.text.trim()),
         'buy_price': double.parse(_buyPriceController.text.trim()),
         'color': _colorController.text.trim(),
         'imei_no_1': _imei1Controller.text.trim(),
         'imei_no_2': _imei2Controller.text.trim().isEmpty ? null : _imei2Controller.text.trim(),
-        'warranty': _warrantyController.text.trim(),
+        'warranty': _selectedWarranty,
       };
 
       final response = await ApiService.editDealerStock(data);
@@ -233,17 +300,17 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
         _fetchStocks();
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ ${response['message']}'), backgroundColor: Colors.red),
-        );
+        setState(() {
+          _formError = response['message'] ?? 'Failed to update stock';
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      setState(() {
+        _formError = 'Error: $e';
+      });
     }
 
-    setState(() => _isCreating = false);
+    setState(() => _isSubmitting = false);
   }
 
   Future<void> _deleteStock(String orderId) async {
@@ -299,14 +366,22 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
   }
 
   void _resetForm() {
-    _selectedModelId = null;
-    _capacityController.clear();
-    _buyPriceController.clear();
-    _colorController.clear();
-    _imei1Controller.clear();
-    _imei2Controller.clear();
-    _warrantyController.clear();
-    _editingOrderId = null;
+    setState(() {
+      _selectedModelId = null;
+      _selectedModelName = '';
+      _modelSearchController.clear();
+      _searchResults = [];
+      _ramController.clear();
+      _romController.clear();
+      _buyPriceController.clear();
+      _colorController.clear();
+      _imei1Controller.clear();
+      _imei2Controller.clear();
+      _selectedWarranty = null;
+      _editingOrderId = null;
+      _isEditing = false;
+      _formError = '';
+    });
   }
 
   void _showStockForm({bool isEdit = false}) {
@@ -315,7 +390,7 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
+        initialChildSize: 0.95,
         maxChildSize: 0.95,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
@@ -354,64 +429,155 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Searchable Model Dropdown (Select2-like)
-                  SearchableDropdown.single(
-                    value: _selectedModelId,
-                    hint: 'Search for your model...',
-                    searchHint: 'Type to search model...',
-                    items: _models.map((model) {
-                      return DropdownMenuItem<String>(
-                        value: model['id'].toString(),
-                        child: Text(
-                          model['title'] ?? '',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedModelId = value as String?;
-                      });
-                    },
-                    validator: (value) => value == null ? 'Please select a model' : null,
-                    decoration: InputDecoration(
-                      labelText: 'Model',
-                      border: const OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  // Error Message
+                  if (_formError.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error, color: Colors.red, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _formError,
+                              style: const TextStyle(color: Colors.red, fontSize: 13),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() => _formError = ''),
+                            child: const Icon(Icons.close, color: Colors.red, size: 18),
+                          ),
+                        ],
                       ),
                     ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
+                  const SizedBox(height: 12),
+
+                  // Model Search
+                  TextFormField(
+                    controller: _modelSearchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search Model',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.search),
                     ),
-                    dropdownStyle: DropdownStyle(
-                      backgroundColor: const Color(0xFF2E2E3E),
-                      borderRadius: BorderRadius.circular(12),
-                      elevation: 4,
-                      itemsHeight: 50,
-                      itemsCount: _models.length > 10 ? 10 : _models.length,
-                    ),
-                    searchStyle: TextStyle(
-                      color: Colors.white,
-                      backgroundColor: const Color(0xFF1E1E2E),
-                      hintStyle: TextStyle(color: Colors.grey.shade400),
-                    ),
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                    underline: Container(),
-                    isExpanded: true,
+                    onChanged: _searchModel,
+                    validator: (value) {
+                      if (_selectedModelId == null) {
+                        return 'Please search and select a model';
+                      }
+                      return null;
+                    },
                   ),
+                  const SizedBox(height: 8),
+
+                  // Search Results
+                  if (_isSearching)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_searchResults.isNotEmpty && _modelSearchController.text.isNotEmpty)
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade900,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade700),
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _searchResults.length > 5 ? 5 : _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final model = _searchResults[index];
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              model['title'] ?? '',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedModelId = model['id'].toString();
+                                _selectedModelName = model['title'] ?? '';
+                                _modelSearchController.text = _selectedModelName;
+                                _searchResults = [];
+                              });
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
+                  if (_selectedModelId != null)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Selected: $_selectedModelName',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedModelId = null;
+                                _selectedModelName = '';
+                                _modelSearchController.clear();
+                                _searchResults = [];
+                              });
+                            },
+                            child: const Icon(Icons.close, size: 18, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
-                  // Capacity
+                  // RAM
                   TextFormField(
-                    controller: _capacityController,
+                    controller: _ramController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(
-                      labelText: 'Capacity (e.g., 256GB)',
+                      labelText: 'RAM (GB)',
+                      hintText: 'e.g., 8',
                       border: OutlineInputBorder(),
+                      suffixText: 'GB',
                     ),
-                    validator: (value) => value?.isEmpty ?? true ? 'Enter capacity' : null,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Enter RAM';
+                      if (int.tryParse(value!) == null) return 'Enter valid number';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ROM
+                  TextFormField(
+                    controller: _romController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'ROM (GB)',
+                      hintText: 'e.g., 128',
+                      border: OutlineInputBorder(),
+                      suffixText: 'GB',
+                    ),
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Enter ROM';
+                      if (int.tryParse(value!) == null) return 'Enter valid number';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
 
@@ -465,14 +631,28 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Warranty
-                  TextFormField(
-                    controller: _warrantyController,
+                  // Warranty Dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedWarranty,
+                    hint: const Text('Select Warranty', style: TextStyle(color: Colors.grey)),
+                    isExpanded: true,
+                    items: _warrantyOptions.map((option) {
+                      return DropdownMenuItem<String>(
+                        value: option,
+                        child: Text(option),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedWarranty = value;
+                      });
+                    },
+                    validator: (value) => value == null ? 'Please select warranty' : null,
                     decoration: const InputDecoration(
-                      labelText: 'Warranty (e.g., 6 months)',
+                      labelText: 'Warranty',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) => value?.isEmpty ?? true ? 'Enter warranty' : null,
+                    dropdownColor: const Color(0xFF2E2E3E),
                   ),
                   const SizedBox(height: 20),
 
@@ -480,11 +660,11 @@ class _MyStocksScreenState extends State<MyStocksScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _isCreating ? null : (isEdit ? _updateStock : _createStock),
+                      onPressed: _isSubmitting ? null : (isEdit ? _updateStock : _createStock),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                       ),
-                      child: _isCreating
+                      child: _isSubmitting
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(isEdit ? '✏️ Update Stock' : '📦 Add Stock'),
                     ),
