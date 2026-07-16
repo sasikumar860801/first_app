@@ -17,7 +17,7 @@ class _HistoryLeadsScreenState extends State<HistoryLeadsScreen> with SingleTick
   List<dynamic> _cancelledLeads = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  Set<String> _expandedOrders = {};
+  final Set<String> _expandedOrders = {};
   
   late TabController _tabController;
   late Timer _timer;
@@ -297,7 +297,7 @@ class _HistoryLeadsScreenState extends State<HistoryLeadsScreen> with SingleTick
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade900.withOpacity(0.3),
+                    color: Colors.blue.shade900.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -314,7 +314,7 @@ class _HistoryLeadsScreenState extends State<HistoryLeadsScreen> with SingleTick
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade900.withOpacity(0.3),
+                    color: Colors.orange.shade900.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -404,7 +404,7 @@ class _HistoryLeadsScreenState extends State<HistoryLeadsScreen> with SingleTick
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade900.withOpacity(0.2),
+                          color: Colors.red.shade900.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -426,7 +426,7 @@ class _HistoryLeadsScreenState extends State<HistoryLeadsScreen> with SingleTick
                                     issue,
                                     style: const TextStyle(fontSize: 10),
                                   ),
-                                  backgroundColor: Colors.red.shade900.withOpacity(0.3),
+                                  backgroundColor: Colors.red.shade900.withValues(alpha: 0.3),
                                   padding: const EdgeInsets.all(0),
                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 );
